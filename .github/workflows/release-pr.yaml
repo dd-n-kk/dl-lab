@@ -1,0 +1,90 @@
+name: release-pr
+
+
+on:
+  workflow_dispatch:
+    inputs:
+      bump:
+        description: 'The semantic version number to bump'
+        default: 'patch'
+        type: choice
+        options: ['auto', 'major', 'minor', 'patch']
+
+
+jobs:
+
+  release-pr:
+
+    # Only branch from `main`.
+    if: ${{ github.ref_name == github.event.repository.default_branch }}
+
+    runs-on: ubuntu-latest
+
+    # Grant permissions to GITHUB_TOKEN. (`actions/checkout` embeds it into `remote.origin.url`.)
+    permissions:
+      contents: write
+
+    steps:
+
+    - uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+
+    # https://docs.astral.sh/uv/guides/integration/github/#caching
+    - uses: astral-sh/setup-uv@v5
+      with:
+        enable-cache: true
+
+    # https://stackoverflow.com/a/76371212
+    - name: Evaluate new semantic version number
+      env:
+        BUMP: ${{ github.event.inputs.bump }}
+      run: |
+        new_ver=$(uvx --from git-cliff git cliff --bumped-version --bump $BUMP)
+        if [[ "$new_ver" =~ v?([0-9]+\.[0-9]+\.[0-9]+) ]]; then
+          echo "NEW_VER=${BASH_REMATCH[1]}" >> $GITHUB_ENV
+        else
+          exit 1
+        fi
+
+    - name: Switch to new release branch
+      run: git switch -c "release/v$NEW_VER"
+
+    - name: Version-bump project
+      run: |
+        uvx --from toml-cli toml set --toml-path pyproject.toml project.version $NEW_VER
+        package_name=$(uvx --from toml-cli toml get --toml-path pyproject.toml project.name)
+        uv lock --upgrade-package "$package_name"
+
+    # Use cliff.toml to configure.
+    # Makes a copy to `./docs/` as release notes in documentation.
+    - name: Update CHANGELOG
+      env:
+        BUMP: ${{ github.event.inputs.bump }}
+      run: |
+        touch CHANGELOG.md
+        uvx --from git-cliff git cliff --bump $BUMP -up CHANGELOG.md
+        cp CHANGELOG.md docs/releases.md
+
+    # `git push` uses `GITHUB_TOKEN` embedded in `remote.origin.url`.
+    - name: Prepare release candidate
+      run: |
+        git config set user.name "github-actions[bot]"
+        git config set user.email "github-actions[bot]@users.noreply.github.com"
+        git add pyproject.toml uv.lock CHANGELOG.md docs/releases.md
+        git commit -m "chore(release): v$NEW_VER candidate"
+        git push -fu origin "release/v$NEW_VER"
+
+    # https://github.com/peter-evans/create-pull-request/blob/main/docs/concepts-guidelines.md
+    - uses: actions/create-github-app-token@v1
+      id: app-token
+      with:
+        app-id: ${{ secrets.APP_ID }}
+        private-key: ${{ secrets.APP_KEY }}
+
+    # `GH_TOKEN` (not `GITHUB_TOKEN`) is required to use GitHub CLI.
+    # Use GitHub Apps token or GitHub PAT (of bot collaborator) to further trigger workflows.
+    - name: Create release PR
+      env:
+        GH_TOKEN: ${{ steps.app-token.outputs.token }}
+      run: gh pr create -B ${{ github.ref_name }} -t "release candidate v$NEW_VER" -b ""

@@ -1,0 +1,59 @@
+name: release
+
+
+on:
+  push:
+    branches-ignore: "**"
+    tags: "v[0-9]+.[0-9]+.[0-9]+"
+
+
+jobs:
+
+  release:
+
+    runs-on: ubuntu-latest
+
+    # Grant permissions to GITHUB_TOKEN. (`actions/checkout` embeds it into `remote.origin.url`.)
+    permissions:
+      contents: write
+      id-token: write
+
+    steps:
+
+    - uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+
+    # https://docs.astral.sh/uv/guides/integration/github/#caching
+    - uses: astral-sh/setup-uv@v5
+      with:
+        enable-cache: true
+
+    - name: Build package
+      run: uv build
+
+    - name: Publish to TestPyPI
+      env:
+        PUBLISH_URL: "https://test.pypi.org/legacy/"
+      run:
+        uv publish --publish-url "$PUBLISH_URL"
+
+    # `--extra cpu` does not work, as we use `--no-project` to test stand-alone installation.
+    # So `--with dl-lab[cpu]` is needed to install PyTorch without GPU.
+    - name: Test installation
+      env:
+        INDEX_URL: "https://test.pypi.org/simple/"
+        MODULE: "dl_lab"
+        PKG: "dl-lab[cpu]"
+      run: uv run --with "$PKG" --default-index "$INDEX_URL" --no-project -- python -c "import $MODULE"
+
+    - name: Publish to PyPI
+      run: uv publish
+
+    - name: Create GitHub release
+      env:
+        GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        TAG: ${{ github.ref_name }}
+      run: |
+        release_note=$(uvx --from git-cliff git cliff -l)
+        gh release create "$TAG" -t "$TAG" -n "$release_note" ./dist/*.tar.gz ./dist/*.whl

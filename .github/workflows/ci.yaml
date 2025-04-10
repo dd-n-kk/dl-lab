@@ -1,0 +1,44 @@
+name: ci
+
+
+on:
+
+  push:
+    # Run CI when pushing to any branch but not when pushing any tag.
+    branches: ['**']
+    tags-ignore: ['**']
+
+  pull_request:
+
+  workflow_dispatch:
+
+
+jobs:
+
+  ci:
+
+    runs-on: ubuntu-latest
+
+    steps:
+
+    - uses: actions/checkout@v4
+
+    # https://docs.astral.sh/uv/guides/integration/github/#caching
+    - uses: astral-sh/setup-uv@v5
+      with:
+        enable-cache: true
+
+    # https://docs.astral.sh/uv/guides/integration/pytorch/#configuring-accelerators-with-optional-dependencies
+    - name: Run tests
+      env:
+        MODULE: "dl_lab"
+      run: |
+        uv python install
+        uv sync --dev --extra cpu
+        uv run pytest --cov=$MODULE --cov-report=xml tests/
+
+    # Only upload coverage report of tests in default branch.
+    - if: ${{ github.ref_name == github.event.repository.default_branch }}
+      uses: codecov/codecov-action@v5
+      with:
+        verbose: true
