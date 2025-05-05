@@ -115,7 +115,7 @@ class BasicMulticlassMetrics(Metric):
         calls = predicts.bincount(minlength=c)
         counts = targets.bincount(minlength=c)
 
-        classes = tc.arange(c)
+        classes = tc.arange(c, device=predicts.device)
         matches = predicts.eq(targets)
         true_pos = predicts.eq(classes.unsqueeze(-1)).logical_and(matches).sum(-1)
         true_neg = n - calls - counts + true_pos
