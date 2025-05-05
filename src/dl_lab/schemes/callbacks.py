@@ -113,15 +113,14 @@ class ScheduleLR(Callback):
 class TabulateLatest(Callback):
     def __init__(
         self,
-        keys: Iterable[str] | None = None,
-        *,
+        *keys: str,
         sort_keys: bool = False,
         decimals: int = 4,
         header_intvl: int = 10,  # 0: No header. <0: Only once. >0: 1 header per x rows.
         min_col_width: int = 16,
     ) -> None:
         super().__init__()
-        self.keys = None if keys is None else tuple(sorted(keys) if sort_keys else keys)
+        self.keys = None if not keys else tuple(sorted(keys)) if sort_keys else keys
         self.decimals = decimals
         self.header_intvl = header_intvl
         self.min_col_width = min_col_width
@@ -151,6 +150,10 @@ class TabulateLatest(Callback):
             tqdm.write(row_str)
 
         self.count += 1
+
+    @classmethod
+    def by_iter(cls, keys: Iterable[str], **kwargs) -> Self:
+        return cls(*keys, **kwargs)
 
     def register_scheme(self, scheme: Scheme) -> None:
         self.record = scheme.record
