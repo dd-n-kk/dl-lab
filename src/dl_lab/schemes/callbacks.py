@@ -44,7 +44,7 @@ class RecordAttribute(Callback):
         self.record[self.key].append(attr)
 
     @classmethod
-    def one_item_array(cls, path: str, *, key: str | None = None) -> Self:
+    def scalar(cls, path: str, *, key: str | None = None) -> Self:
         return cls(path, key=key, transform=lambda x: x.item())
 
     def register_scheme(self, scheme: Scheme) -> None:
