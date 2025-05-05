@@ -1,12 +1,11 @@
+from collections.abc import Iterable
+from functools import reduce
+from typing import Any
+
 __all__ = (
     "attr_path",
     "nested_getattr",
 )
-
-
-from collections.abc import Iterable
-from functools import reduce
-from typing import Any
 
 
 def attr_path(spec: str) -> tuple[str, ...]:
