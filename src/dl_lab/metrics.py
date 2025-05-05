@@ -51,9 +51,7 @@ class BasicBinaryMetrics(Metric):
             0.0 if prediction == "logit" else 0.5 if prediction == "prob" else None
         )
         self.zero_div_val = float(zero_div_val)
-        self._names = ("ACC", "F1", "TPR", "TNR", "PPV", "NPV")
-        if prefix:
-            self._names = tuple(f"{prefix}_{name}" for name in self._names)
+        self._names = self.make_names(prefix=prefix)
 
     def __call__(self, predicts: Tensor, targets: Tensor) -> dict[str, float]:
         predicts = predicts.flatten()
@@ -79,6 +77,13 @@ class BasicBinaryMetrics(Metric):
 
         return dict(zip(self._names, (acc, f1, tpr, tnr, ppv, npv), strict=True))
 
+    @staticmethod
+    def make_names(*, prefix: str = "") -> tuple[str, ...]:
+        names = ("ACC", "F1", "TPR", "TNR", "PPV", "NPV")
+        if prefix:
+            return tuple(f"{prefix}_{name}" for name in names)
+        return names
+
     def names(self) -> tuple[str, ...]:
         return self._names
 
@@ -98,7 +103,7 @@ class BasicMulticlassMetrics(Metric):
         self.axis = axis
         self.prediction = prediction
         self.zero_div_val = None if zero_div_val is None else float(zero_div_val)
-        self._names = self._make_names(n_classes, prefix, labels)
+        self._names = self.make_names(n_classes, prefix=prefix, labels=labels)
 
     def __call__(self, predicts: Tensor, targets: Tensor) -> dict[str, float]:
         if self.prediction == "index":
@@ -136,12 +141,9 @@ class BasicMulticlassMetrics(Metric):
 
         return results
 
-    def names(self) -> tuple[str, ...]:
-        return self._names
-
     @staticmethod
-    def _make_names(
-        n_classes: int, prefix: str = "", labels: Iterable[str] | None = None
+    def make_names(
+        n_classes: int, *, prefix: str = "", labels: Iterable[str] | None = None
     ) -> tuple[str, ...]:
         if labels:
             labels_ = tuple(labels)
@@ -160,3 +162,6 @@ class BasicMulticlassMetrics(Metric):
         )
 
         return tuple(f"{prefix}_{name}" for name in names) if prefix else names
+
+    def names(self) -> tuple[str, ...]:
+        return self._names
