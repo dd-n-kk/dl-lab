@@ -35,6 +35,9 @@ class AsMetric(Metric):
             return {self._names[0]: output.item()}
         return dict(zip(self._names, output.tolist(), strict=True))
 
+    def names(self) -> tuple[str, ...]:
+        return self._names
+
 
 class BasicBinaryMetrics(Metric):
     def __init__(
