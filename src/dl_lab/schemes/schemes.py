@@ -95,5 +95,5 @@ class SupervisedSGD(Scheme):
             all_predicts = tc.cat(predicts_buffer)
             all_targets = tc.cat(targets_buffer)
             for metric in self.metrics:
-                for key, val in metric(all_predicts, all_targets):
-                    self.record[key].append(val)
+                for k, v in metric(all_predicts, all_targets).items():
+                    self.record[k].append(v)
