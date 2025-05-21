@@ -5,11 +5,11 @@ import torch as tc
 from torch import Tensor
 from torch.nn import Module
 from torch.optim import Optimizer
-from torch.utils.data import DataLoader
 from tqdm.auto import tqdm
 
 from dl_lab import utils
 from dl_lab.metrics import Metric
+from dl_lab.types import DataSource
 
 from .abc import Callback, Scheme
 
@@ -22,11 +22,11 @@ class SupervisedSGD(Scheme):
     def __init__(
         self,
         *,
-        data: DataLoader[Iterable[Tensor]],
+        data: DataSource,
         model: Module,
         optimizer: Optimizer,
         loss_func: Callable[..., Tensor],
-        valid_data: DataLoader[Iterable[Tensor]] | None = None,
+        valid_data: DataSource | None = None,
         metrics: Iterable[Metric] = (),
         per_batch: Callback | Iterable[Callback] | None = None,
         per_epoch: Callback | Iterable[Callback] | None = None,
